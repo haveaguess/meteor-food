@@ -1,18 +1,24 @@
+#
+# Ben Ritchie
+# 1/4/2015
+#
+
+# Some implementation notes:
+#
 # Performance monitoring : https://kadira.io/
 # watching DDP msgs : https://github.com/arunoda/meteor-ddp-analyzer
 # DDP: Distributed Data Protocol: 
 #   https://github.com/meteor/meteor/blob/devel/packages/ddp/DDP.md
 #   https://meteorhacks.com/introduction-to-ddp.html
-# heavy use of http://js2.coffee/
-# https://atmospherejs.com/dandv/http-more
-# mongo filter for auth "334" vs 334 :(
+# Using http-more to get access to generated url for debugging : https://atmospherejs.com/dandv/http-more
 #
-#Meteor._sleepForMs(2000);
+# There was a gotcha with Mongo's selector type handling: search for auth "334" doesnt work you have to cast to 334 :(
 #
-# bulk insert
-#http://stackoverflow.com/questions/19757434/bulk-mongodb-insert-in-meteor-or-node
-#http://stackoverflow.com/questions/15365747/how-to-use-mongoimport-with-my-meteor-application-database
+# TODO: Insert's are quite slow, bulk inserts aren't support in Meteor, 
+# http://stackoverflow.com/questions/19757434/bulk-mongodb-insert-in-meteor-or-node
+# http://stackoverflow.com/questions/15365747/how-to-use-mongoimport-with-my-meteor-application-database
 #
+
 #
 ########################### Shared Code #########################
 #
@@ -41,6 +47,7 @@ if Meteor.isClient
     authority: -> Session.get 'authority'
     businesses: -> Session.get 'businesses'
     summary: -> Session.get 'summary'
+
     authorities: -> 
       options = 
         sort: 
@@ -49,6 +56,7 @@ if Meteor.isClient
           name : 1
           localAuthorityId : 1 
 
+      # EstablishmentDB.find({}, options).distinct('localAuthorityId', true);
       cursor = AuthorityDB.find {}, options
 
       return cursor
@@ -75,10 +83,7 @@ if Meteor.isClient
     return
 
   # TODO: This is slow as does three passes through businesses array. Could do this on server if issue
-  # TODO: Use a data table https://atmospherejs.com/aslagle/reactive-table
-  # TODO: Use a data table http://reactive-table.meteor.com/
-  # TODO: Use a data table https://atmospherejs.com/ephemer/reactive-datatables
-
+  
   updateSummaryData = (businesses) ->
     sumMap = {}
 
@@ -140,8 +145,10 @@ if Meteor.isClient
 
 if Meteor.isServer
 
-  #TODO:Clear DB
-  Kadira.connect('5FgBP5BXun7muycFp', 'e78ff442-ce3b-4883-a89f-83608afa052a')
+  #TODO:Expose method to Clear DB
+
+  # I used this for performance monitoring
+  #Kadira.connect('5FgBP5BXun7muycFp', 'e78ff442-ce3b-4883-a89f-83608afa052a')
 
   #
   # Food Standards API Constants
@@ -273,7 +280,7 @@ if Meteor.isServer
 
       log.debug "Upserting authority #{authorityLogLabel}"
 
-      # limit scope to this loop - the coffescript way :/
+      # capture closure variables the coffescript way :/
       do (authority, authorityLogLabel) ->
         # upsert this Authority
         AuthorityDB.update selector, setter, dbUpsertOption, 
@@ -290,9 +297,9 @@ if Meteor.isServer
 
     return
 
-
+  # refresh db from pageNumber
   refreshDb = (pageNumber) ->
-
+    # HTTP GET Authorities from Food Standards API
     HTTP.get "#{apiUrlAuthorities}/#{pageNumber}/#{apiUrlAuthoritiesPageSize}", { headers: apiHeaders }, (error, result) ->
       if !error
         # parse the content
@@ -320,12 +327,11 @@ if Meteor.isServer
 
   # run on server at startup
   Meteor.startup ->
-    # refresh db from page 1
+    # refresh db from page 1 
     refreshDb(1)
 
     # TODO: Create into a method and trigger from admin panel 
 
-    # HTTP GET Authorities
 
     return
 
