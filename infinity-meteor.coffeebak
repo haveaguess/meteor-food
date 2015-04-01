@@ -7,7 +7,6 @@
 # https://atmospherejs.com/dandv/http-more
 # mongo filter for auth "334" vs 334 :(
 #
-#Meteor._sleepForMs(2000);
 #
 
 #
@@ -33,97 +32,57 @@ Logger.setLevel 'app', 'trace'
 
 if Meteor.isClient
 
-  # These helpers are the reactive hooks used by the template
-  Template.foodform.helpers 
+  Template.hello.helpers 
+    authorities: -> Session.get 'authorities'
     authority: -> Session.get 'authority'
     businesses: -> Session.get 'businesses'
-    summary: -> Session.get 'summary'
-    authorities: -> 
-      options = fields: 
-        name : 1
-        localAuthorityId : 1 
 
-      cursor = AuthorityDB.find {}, options
+  # TODO: Expose as client method
+  # AuthorityDB.remove({});
+  # EstablishmentDB.remove({});
 
-      return cursor
+  clickButton = ->
+    options = fields: 
+      name : 1
+      localAuthorityId : 1 
 
-  # when the user changes the authority
-  onChangeAuthority = (evt) ->
+    cursor = AuthorityDB.find {}, options
+
+    Session.set 'authorities', cursor.fetch()
+    return
+
+  changeAuthority = (evt) ->
     newValue = $(evt.target).val()
     Session.set 'authority', newValue
 
-    log.info("setting localAuthorityId to #{newValue}")
+    log.info("setting localAuthorityId to " + newValue)
 
     # note we HAVE to cast to a Number - lost a lot of time on that! :(
     selector =
       localAuthorityId : Number(newValue)
 
-    cursor = EstablishmentDB.find selector
+    options = fields: 
+      localAuthorityId : 1
+      ratingValue : 1
+      businessName : 1 
+
+    log.info options
+
+    cursor = EstablishmentDB.find selector, options
     businesses = cursor.fetch()
 
-    #log.trace businesses
-    Session.set 'businesses', businesses
-
-    updateSummaryData businesses
-
-    return
-
-  # TODO: This is slow as does three passes through businesses array. Could do this on server if issue
-  # TODO: Use a data table https://atmospherejs.com/aslagle/reactive-table
-  # TODO: Use a data table http://reactive-table.meteor.com/
-  # TODO: Use a data table https://atmospherejs.com/ephemer/reactive-datatables
-
-  updateSummaryData = (businesses) ->
     sumMap = {}
-
-    #TODO handle empty select case
-    #TODO change to normal for loop
-
-    # init all to zero
-    sumMap[business.ratingValue] = 0 for business in businesses
-    # increment each one
     sumMap[business.ratingValue] += 1 for business in businesses
 
-    total = 0
-    total += count for ratingType, count of sumMap
+    log.info sumMap
 
+    log.info businesses.length  
+    Session.set 'businesses', businesses
+    return
 
-    # is this authority using 1-5 scheme?
-    hasPass = false
-    hasPass |= business.ratingValue.indexOf('Pass') != -1 for business in businesses
-
-    log.trace sumMap
-
-    # if using the 1-5 scheme
-    if !hasPass 
-      log.trace "using a 1-5 scheme, padding out"
-
-      # TODO: Confirm
-      # ensure Exempt
-      if !sumMap['Exempt']
-        sumMap['Excempt'] = 0;
-
-      # ensure we include zero entries for 1-5
-      for i in [1..5]
-        if !sumMap[i]
-          sumMap[i] = 0;
-
-    if total == 0
-      total = 1
-
-    log.trace sumMap
-    log.trace total
-
-    summary = []
-    for key, value of sumMap
-      summary.push key: key, value: Math.round(value*100/total)
-
-    Session.set 'summary', summary
-
-
-  # register event handlers for foodform
-  Template.foodform.events 
-    'change #authorityPicker': onChangeAuthority
+  Template.hello.events 
+    'click button': clickButton
+    'change #authorityPicker': changeAuthority
 
 
 
@@ -166,14 +125,14 @@ if Meteor.isServer
   updateEstablishmentsDB = (authorityId, authorityDescription, establishments) ->
 
     #log.trace establishments
-    log.info "Updating for #{establishments.length} establishments"
+    log.info "Updating for " + establishments.length + " establishments"
 
     for establishment in establishments
       # capture establishment in scope - the coffescript way :/
       do (establishment) ->
         establishmentLogLabel = "#{establishment.BusinessName} (#{establishment.FHRSID})"
 
-        log.trace "Upserting establishment (for #{authorityId}) : #{establishmentLogLabel}"
+        log.trace "Upserting establishment (for #{authorityId}) : " + establishmentLogLabel
 
         # TODO: Confirm FHRSID is GUID
         selector = 
@@ -188,9 +147,9 @@ if Meteor.isServer
         EstablishmentDB.update selector, setter, dbUpsertOption, 
           (error, numberOfInserts) ->
             if !error
-              log.trace "Upserted establishment (for #{authorityId}): #{establishmentLogLabel}"
+              log.trace "Upserted establishment (for #{authorityId}): " + establishmentLogLabel
             else
-              log.error "Couldn't upsert establishment (for #{authorityId}): #{establishmentLogLabel}"
+              log.error "Couldn't upsert establishment (for #{authorityId}): " + establishmentLogLabel
 
     return
 
@@ -213,14 +172,14 @@ if Meteor.isServer
 
     HTTP.get apiUrlEstablishments, options, 
       (error, result) ->
-        log.debug "pageSize #{query.pageSize}"
+        log.debug "pageSize " + query.pageSize
         if !error
           #log.debug result.content.meta.pageSize
           parsedContent = JSON.parse(result.content)
 
           log.debug "url was  : " + result.href
-          log.debug "pageSize from server : #{parsedContent.meta.pageSize}" 
-          log.debug "currentPage from server : #{parsedContent.meta.pageSize}"
+          log.debug "pageSize from server : " + parsedContent.meta.pageSize
+          log.debug "currentPage from server : " + parsedContent.meta.pageSize
 
           # update DB
           updateEstablishmentsDB authority.LocalAuthorityId, authorityLogLabel, parsedContent.establishments
@@ -230,8 +189,8 @@ if Meteor.isServer
             log.info "Processed all establishment pages for #{authorityLogLabel}"
             return
           else
-            # # limit to one page for now - TODO: open up
-            # return
+            # limit to one page for now - TODO: open up
+            return
 
             # get next page
             pageNumber++
@@ -239,7 +198,7 @@ if Meteor.isServer
             updateEstablishments authority, authorityLogLabel, pageNumber
 
         else
-          log.error "Couldn't get establishments for authority: #{authorityLogLabel}"
+          log.error "Couldn't get establishments for authority: " + authorityLogLabel
     
 
     return
@@ -247,7 +206,7 @@ if Meteor.isServer
   
   # upsert the authority to DB 
   updateAuthorityDB = (authorities) ->
-    log.info "Updating for #{authorities.length} authorities"
+    log.info "Updating for " + authorities.length + " authorities"
 
     for authority, i in authorities
       authorityLogLabel = "#{authority.Name} (#{authority.LocalAuthorityId})"
@@ -257,7 +216,7 @@ if Meteor.isServer
         localAuthorityId: authority.LocalAuthorityId
         name: authority.Name
 
-      log.debug "Upserting authority #{authorityLogLabel}"
+      log.debug "Upserting authority : " + authorityLogLabel
 
       # limit scope to this loop - the coffescript way :/
       do (authority, authorityLogLabel) ->
@@ -265,15 +224,15 @@ if Meteor.isServer
         AuthorityDB.update selector, setter, dbUpsertOption, 
           (error, numberOfInserts) ->
             if !error
-              log.debug "Upserted authority #{authorityLogLabel}"
+              log.debug "Upserted authority : " + authorityLogLabel
               # now go update the establishments for this authority
               updateEstablishments authority, authorityLogLabel, 1
             else
-              log.error "Couldn't upsert authority: #{authorityLogLabel}"
+              log.error "Couldn't upsert authority: " + authorityLogLabel
 
       # limit to a few for now TODO : open up
-      # if i > 5
-      #   break
+      if i > 5
+        break
 
     log.info "Updating for all Authorities complete"
 
@@ -283,23 +242,20 @@ if Meteor.isServer
   # run on server at startup
   Meteor.startup ->
 
-    # TODO: Create into a method and trigger from admin panel 
-    
     # HTTP GET Authorities
     HTTP.get apiUrlAuthorities, { headers: apiHeaders }, (error, result) ->
       if !error
+        log.info 'Got authorities'
+#       log.debug result.content
+        
         # parse the content
         parsedContent = JSON.parse(result.content)
-        authorities = parsedContent.authorities
-
-        log.info "Fetched #{authorities.length} authorities from remote API : #{apiUrlAuthorities}"
 
         # update the db with authorities
-        updateAuthorityDB authorities
-
+        updateAuthorityDB parsedContent.authorities
 
       else
-        log.error "getAuthorities failed with HTTP error: #{error}"
+        log.error 'getAuthorities failed with HTTP error: ' + error
       return
 
     return

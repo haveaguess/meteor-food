@@ -1,14 +1,43 @@
 <head>
-  <title>infinity-meteor</title>
+	<title>infinity-meteor</title>
 </head>
 
 <body>
-  <h1>Welcome to Meteor!</h1>
+	<h1>Food Quality by Authority</h1>
 
-  {{> hello}}
+	{{> foodform}}
 </body>
 
-<template name="hello">
-  <button>Click Me</button>
-  <p>You've pressed the button {{counter}} times.</p>
+<template name="foodform">
+	<select id="authorityPicker">
+		<option value="">Choose an authority</option>
+		{{#each authorities}}
+		<option value="{{localAuthorityId}}">{{name}}</option>
+		{{/each}}
+	</select>	
+
+	<table>
+		<thead>
+			<tr>
+				<td>Name</td>
+				<td>Rating</td>
+			</tr>
+		</thead>
+		<tbody>
+			{{#each summary}}
+			<tr>
+				<td>{{key}}</td>
+				<td>{{value}}</td>
+			</tr>
+			{{/each}}
+		</tbody>
+	</table>
+
+	<ul>
+		{{#each businesses}}
+			<li>{{localAuthorityId}}: {{businessName}} = {{ratingValue}}</li>
+		{{/each}}
+	</ul>
+
+
 </template>
