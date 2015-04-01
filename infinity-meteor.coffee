@@ -9,7 +9,10 @@
 #
 #Meteor._sleepForMs(2000);
 #
-
+# bulk insert
+#http://stackoverflow.com/questions/19757434/bulk-mongodb-insert-in-meteor-or-node
+#http://stackoverflow.com/questions/15365747/how-to-use-mongoimport-with-my-meteor-application-database
+#
 #
 ########################### Shared Code #########################
 #
@@ -39,9 +42,12 @@ if Meteor.isClient
     businesses: -> Session.get 'businesses'
     summary: -> Session.get 'summary'
     authorities: -> 
-      options = fields: 
-        name : 1
-        localAuthorityId : 1 
+      options = 
+        sort: 
+          name: 1
+        fields: 
+          name : 1
+          localAuthorityId : 1 
 
       cursor = AuthorityDB.find {}, options
 
@@ -116,7 +122,7 @@ if Meteor.isClient
 
     summary = []
     for key, value of sumMap
-      summary.push key: key, value: Math.round(value*100/total)
+      summary.push key: key, value: Math.round(value*100/total) + '%'
 
     Session.set 'summary', summary
 
@@ -143,6 +149,8 @@ if Meteor.isServer
 
   # URLS
   apiUrlAuthorities = 'http://api.ratings.food.gov.uk/Authorities/basic'
+  apiUrlAuthoritiesPageSize = 50
+
   apiUrlEstablishments = 'http://api.ratings.food.gov.uk/Establishments'
 
   # request headers
@@ -246,13 +254,19 @@ if Meteor.isServer
       
   
   # upsert the authority to DB 
-  updateAuthorityDB = (authorities) ->
+  updateAuthorityDB = (authorities, lazyUpdate) ->
     log.info "Updating for #{authorities.length} authorities"
 
     for authority, i in authorities
       authorityLogLabel = "#{authority.Name} (#{authority.LocalAuthorityId})"
 
       selector = localAuthorityId: authority.LocalAuthorityId
+      cursor = EstablishmentDB.find selector, {}
+
+      if cursor.fetch().length > 0 && lazyUpdate
+        log.debug "lazyUpdate so skipping authority that already has captured establishments : #{authority.Name}"
+        continue;
+
       setter = $set: 
         localAuthorityId: authority.LocalAuthorityId
         name: authority.Name
@@ -271,22 +285,15 @@ if Meteor.isServer
             else
               log.error "Couldn't upsert authority: #{authorityLogLabel}"
 
-      # limit to a few for now TODO : open up
-      # if i > 5
-      #   break
 
     log.info "Updating for all Authorities complete"
 
     return
 
 
-  # run on server at startup
-  Meteor.startup ->
+  refreshDb = (pageNumber) ->
 
-    # TODO: Create into a method and trigger from admin panel 
-    
-    # HTTP GET Authorities
-    HTTP.get apiUrlAuthorities, { headers: apiHeaders }, (error, result) ->
+    HTTP.get "#{apiUrlAuthorities}/#{pageNumber}/#{apiUrlAuthoritiesPageSize}", { headers: apiHeaders }, (error, result) ->
       if !error
         # parse the content
         parsedContent = JSON.parse(result.content)
@@ -294,13 +301,31 @@ if Meteor.isServer
 
         log.info "Fetched #{authorities.length} authorities from remote API : #{apiUrlAuthorities}"
 
-        # update the db with authorities
-        updateAuthorityDB authorities
+        # update the db with authorities in a lazy fashion
+        updateAuthorityDB authorities, true
 
+        # is this the last page?
+        if parsedContent.meta.totalPages == pageNumber
+          log.info "Updated for all authorities"
+          return
+        else
+          # get next page
+          pageNumber++
+          log.debug "Getting next page #{pageNumber}"
+          refreshDb pageNumber
 
       else
         log.error "getAuthorities failed with HTTP error: #{error}"
       return
+
+  # run on server at startup
+  Meteor.startup ->
+    # refresh db from page 1
+    refreshDb(1)
+
+    # TODO: Create into a method and trigger from admin panel 
+
+    # HTTP GET Authorities
 
     return
 

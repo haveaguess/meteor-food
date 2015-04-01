@@ -36,6 +36,7 @@ minimongo@1.0.8-pre.win.1
 mobile-status-bar@1.0.3
 mongo@1.1.0
 mongo-livedata@1.0.8
+nsmeta:zurb-foundation@0.2.0
 observe-sequence@1.0.6-pre.win.1
 ordered-dict@1.0.3
 random@1.0.3

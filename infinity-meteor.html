@@ -1,26 +1,35 @@
 <head>
-	<title>infinity-meteor</title>
+	<title>Food Standards</title>
+
+	<!-- 	<link rel="stylesheet" type="text/css" href="css/foundation.min.css"/> -->
+
 </head>
 
 <body>
-	<h1>Food Quality by Authority</h1>
+	<div class="row">
+		<div class="large-12 columns">
+			<h1>Food Quality by Authority</h1>
 
-	{{> foodform}}
+			{{> foodform}}
+		</div>
+	</div>
 </body>
 
 <template name="foodform">
-	<select id="authorityPicker">
+	<select id="authorityPicker" style="width: 300px">
 		<option value="">Choose an authority</option>
 		{{#each authorities}}
 		<option value="{{localAuthorityId}}">{{name}}</option>
 		{{/each}}
 	</select>	
 
+	<p></p>
+
 	<table>
 		<thead>
 			<tr>
-				<td>Name</td>
 				<td>Rating</td>
+				<td>Percentage</td>
 			</tr>
 		</thead>
 		<tbody>
@@ -33,11 +42,11 @@
 		</tbody>
 	</table>
 
-	<ul>
+<!-- 	<ul>
 		{{#each businesses}}
 			<li>{{localAuthorityId}}: {{businessName}} = {{ratingValue}}</li>
 		{{/each}}
 	</ul>
-
+-->
 
 </template>
