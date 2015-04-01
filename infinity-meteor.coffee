@@ -95,10 +95,6 @@ if Meteor.isClient
     # increment each one
     sumMap[business.ratingValue] += 1 for business in businesses
 
-    total = 0
-    total += count for ratingType, count of sumMap
-
-
     # is this authority using 1-5 scheme?
     hasPass = false
     hasPass |= business.ratingValue.indexOf('Pass') != -1 for business in businesses
@@ -119,11 +115,15 @@ if Meteor.isClient
         if !sumMap[i]
           sumMap[i] = 0;
 
-    if total == 0
-      total = 1
-
     log.trace sumMap
     log.trace total
+
+    # total number of ratings
+    total = businesses.length
+
+    # avoid divide by zero
+    if total == 0
+      total = 1
 
     summary = []
     for key, value of sumMap
@@ -170,13 +170,6 @@ if Meteor.isServer
   # Collection Upsert option
   dbUpsertOption = upsert: true
 
-  # # create a method to return authority names
-  # Meteor.methods
-  #   getAuthorityNames: () ->
-  #     log.info "Fetching authority names"
-  #     cursor = AuthorityDB.find {}, { fields: 'name' : 1 }
-  #     log.trace "cursor: " + cursor.fetch()
-  #     return cursor.fetch()
 
   updateEstablishmentsDB = (authorityId, authorityDescription, establishments) ->
 
@@ -245,9 +238,6 @@ if Meteor.isServer
             log.info "Processed all establishment pages for #{authorityLogLabel}"
             return
           else
-            # # limit to one page for now - TODO: open up
-            # return
-
             # get next page
             pageNumber++
             log.debug "Getting next page #{pageNumber}"
