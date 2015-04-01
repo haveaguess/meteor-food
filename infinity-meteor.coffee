@@ -28,8 +28,8 @@ EstablishmentDB = new (Mongo.Collection)('establishment')
 
 # Setup pince logger  - https://atmospherejs.com/jag/pince
 log = new Logger('app')
-Logger.setLevel 'info'
-Logger.setLevel 'app', 'trace'
+Logger.setLevel 'warn'
+Logger.setLevel 'app', 'warn'
 
 # Experimental logger : 
 # tb = Observatory.getToolbox()
